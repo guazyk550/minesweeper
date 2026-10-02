@@ -36,8 +36,19 @@
 
 ## 快速开始
 
-> 不想编译？直接到 [Releases](https://github.com/guazyk550/minesweeper/releases/latest) 下载 `minesweeper.jar`，
-> 双击 `run.bat`（或 `java -jar minesweeper.jar`）即可开玩。
+### 方式一：下载现成的（推荐，**不需要装 Java**）
+
+到 [Releases](https://github.com/guazyk550/minesweeper/releases/latest) 下载任意一个：
+
+| 下载 | 说明 |
+|---|---|
+| `Minesweeper-1.1.0.exe` | **Windows 安装程序**（约 32 MB，自带精简 JRE）。双击安装，自动创建开始菜单项和桌面快捷方式，装完直接玩 |
+| `Minesweeper-1.1.0-portable.zip` | **免安装绿色版**（约 30 MB）。解压到任意目录，双击里面的 `Minesweeper.exe` 即可 |
+| `minesweeper.jar` | 只要 jar（约 48 KB），需要本机有 JDK 8+ |
+
+> 前两个都**自带了精简过的 Java 运行时**，所以目标机器完全不用装 JDK。
+
+### 方式二：自己编译
 
 需要 **JDK 8 或更高**（开发环境为 JDK 24）。
 
@@ -147,6 +158,19 @@ java -cp out minesweeper.GenTest
 # 无界面自动通关测试（三难度各 5 局）
 java -cp out minesweeper.HeadlessTest
 ```
+
+### 打包 Windows 安装程序 / 免安装版
+
+需要 JDK 14+（用到自带的 `jpackage`）和 **WiX Toolset v3**（生成 exe 安装程序用）：
+
+```powershell
+winget install WiXToolset.WiXToolset
+powershell -ExecutionPolicy Bypass -File packaging\build-installer.ps1 -Version 1.1.0
+# 产物：build\packaging\dist\Minesweeper-1.1.0.exe 和 Minesweeper-1.1.0-portable.zip
+```
+
+脚本会自动 `jlink` 出一个精简运行时（约 30 MB）打进产物，所以最终用户不需要装 Java。
+应用图标由 `packaging/make_icon.py` 生成（PIL 画的未翻开格子 + 地雷）。
 
 ## Roadmap
 

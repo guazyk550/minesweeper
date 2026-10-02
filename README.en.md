@@ -38,9 +38,19 @@ Cell grid compared pixel by pixel with the classic `saolei.exe` (left: classic, 
 
 ## Quick start
 
-> Don't want to build it? Grab `minesweeper.jar` from the
-> [latest release](https://github.com/guazyk550/minesweeper/releases/latest) and run
-> `java -jar minesweeper.jar`.
+### Option 1: download a build (no Java required)
+
+From the [latest release](https://github.com/guazyk550/minesweeper/releases/latest):
+
+| Download | Notes |
+|---|---|
+| `Minesweeper-1.1.0.exe` | **Windows installer** (~32 MB, bundled trimmed JRE). Installs with Start Menu + desktop shortcuts |
+| `Minesweeper-1.1.0-portable.zip` | **Portable build** (~30 MB). Unzip anywhere, run `Minesweeper.exe` |
+| `minesweeper.jar` | Just the jar (~48 KB), needs JDK 8+ on the machine |
+
+The first two bundle a trimmed Java runtime, so **no JDK is needed** on the target machine.
+
+### Option 2: build it yourself
 
 Requires **JDK 8+** (developed with JDK 24).
 
@@ -111,6 +121,19 @@ src/minesweeper/
 java -cp out minesweeper.GenTest        # solvable ratio and generation timing
 java -cp out minesweeper.HeadlessTest   # headless auto-play, 5 games per difficulty
 ```
+
+### Building the Windows installer / portable build
+
+Requires JDK 14+ (for `jpackage`) and **WiX Toolset v3**:
+
+```powershell
+winget install WiXToolset.WiXToolset
+powershell -ExecutionPolicy Bypass -File packaging\build-installer.ps1 -Version 1.1.0
+# outputs: build\packaging\dist\Minesweeper-1.1.0.exe and Minesweeper-1.1.0-portable.zip
+```
+
+The script uses `jlink` to bundle a trimmed runtime (~30 MB) into the artifacts, so end users
+do not need Java installed at all.
 
 ## License
 
