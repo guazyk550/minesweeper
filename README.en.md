@@ -4,6 +4,7 @@
 > it **generates boards that are solvable by pure logic** (no forced guesses),
 > and it has a **built-in auto-player** backed by a proper solver.
 
+[![build](https://github.com/guazyk550/minesweeper/actions/workflows/build.yml/badge.svg)](https://github.com/guazyk550/minesweeper/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Java](https://img.shields.io/badge/Java-8%2B-orange)
 ![No Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)

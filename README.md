@@ -3,6 +3,7 @@
 > 用 Java / Swing 写的经典扫雷：**能生成"逻辑可解"的地图**（避开经典扫雷那种必须靠猜的死局），
 > **内置自动玩求解器**，并保留了经典手感（首点安全、chord 展开、七段数码管、笑脸重开）。
 
+[![build](https://github.com/guazyk550/minesweeper/actions/workflows/build.yml/badge.svg)](https://github.com/guazyk550/minesweeper/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Java](https://img.shields.io/badge/Java-8%2B-orange)
 ![No Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
