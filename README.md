@@ -36,6 +36,9 @@
 
 ## 快速开始
 
+> 不想编译？直接到 [Releases](https://github.com/guazyk550/minesweeper/releases/latest) 下载 `minesweeper.jar`，
+> 双击 `run.bat`（或 `java -jar minesweeper.jar`）即可开玩。
+
 需要 **JDK 8 或更高**（开发环境为 JDK 24）。
 
 ```bash

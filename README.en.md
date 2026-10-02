@@ -38,6 +38,10 @@ Cell grid compared pixel by pixel with the classic `saolei.exe` (left: classic, 
 
 ## Quick start
 
+> Don't want to build it? Grab `minesweeper.jar` from the
+> [latest release](https://github.com/guazyk550/minesweeper/releases/latest) and run
+> `java -jar minesweeper.jar`.
+
 Requires **JDK 8+** (developed with JDK 24).
 
 ```bash
