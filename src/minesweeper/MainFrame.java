@@ -250,6 +250,7 @@ public class MainFrame extends JFrame {
 
     private void newGame(GameModel.Difficulty d) {
         auto.stop();
+        auto.resetCounters();          // 否则状态栏会显示上一局的点击数/猜测数
         autoBtn.setText("▶ 自动玩");
         endHandled = false;
         this.diff = d;
