@@ -99,11 +99,54 @@ def pause_if_frozen():
         pass
 
 
+def ask_next(played, wins):
+    """一局结束后问用户接下来做什么。
+
+    返回 'next'（直接开下一局）/ 'rescan'（重新识别当前局面）/ 'quit'。
+    """
+    print()
+    print(LINE)
+    print(f'   已经玩了 {played} 局，{wins} 胜。接下来？')
+    print(THIN)
+    print('     [回车 / n]  直接开始下一局（自动点笑脸重开）')
+    print('     [c]         重新识别当前局面，接着玩这一把')
+    print('     [q]         退出')
+    print(LINE)
+    while True:
+        try:
+            ans = input('  请选择 > ').strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            return 'quit'
+        if ans in ('', 'n', 'next', 'y', 'yes'):
+            return 'next'
+        if ans in ('c', 'continue', 'r', 'rescan'):
+            return 'rescan'
+        if ans in ('q', 'quit', 'exit', 'e'):
+            return 'quit'
+        print('  没看懂，请输入 n（下一局）/ c（重新识别）/ q（退出）')
+
+
+def wait_board_ready(bd_reader, tries=20):
+    """等棋盘进入可玩状态（有已翻开的格子）。"""
+    for _ in range(tries):
+        time.sleep(0.6)
+        try:
+            bd = bd_reader()
+        except Exception:                        # noqa: BLE001
+            continue
+        if bd.counts['open'] > 0:
+            return bd
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser(description='扫雷自动玩')
-    ap.add_argument('--games', type=int, default=1, help='玩几局（默认 1）')
+    ap.add_argument('--games', type=int, default=0,
+                    help='最多玩几局；0（默认）= 一直玩到你自己选退出')
     ap.add_argument('--new', action='store_true', help='先点笑脸重开一局')
     ap.add_argument('--list', action='store_true', help='只列出识别到的扫雷窗口')
+    ap.add_argument('--interactive', action='store_true',
+                    help='强制开启「每局结束问一次」的交互（输入被重定向时也用）')
     ap.add_argument('--speed', type=int, default=0, help='每次操作后的额外等待（毫秒）')
     ap.add_argument('--verbose-board', action='store_true',
                     help='把每轮棋盘快照也打进日志（默认只记关键动作）')
@@ -178,15 +221,41 @@ def main():
     print()
 
     print(THIN)
-    print(f'开始自动游玩，共 {args.games} 局。想中止直接关掉本窗口即可。')
+    if args.games:
+        print(f'开始自动游玩，最多 {args.games} 局。想中止直接关掉本窗口即可。')
+    else:
+        print('开始自动游玩。每局结束后会问你要不要继续；想中止直接关掉本窗口。')
     print(THIN)
     print()
 
-    results = []
-    for g in range(1, args.games + 1):
-        if g > 1:
-            print()
-            print(f'>> 准备第 {g} 局：点笑脸重开…')
+    interactive = args.interactive or sys.stdin.isatty()
+    played = 0
+    wins = 0
+    while True:
+        played += 1
+        res, clicks, rd, chords = bot.play_one(played, resume=True,
+                                               verbose_board=args.verbose_board)
+        if res == 'win':
+            wins += 1
+
+        print()
+        if res == 'win':
+            print(f'>>> 第 {played} 局：通关！')
+        elif res == 'lose':
+            print(f'>>> 第 {played} 局：踩雷了（差一点）')
+        else:
+            print(f'>>> 第 {played} 局：{res}')
+        print(f'    轮次 {rd}，左键点击 {clicks} 次，chord {chords} 次')
+
+        if args.games and played >= args.games:
+            print(f'\n  已经达到设定的 {args.games} 局，收工。')
+            break
+
+        if not interactive:
+            # 输入被重定向（脚本/自动化）：没人可以问，就自己往下走
+            if not args.games:
+                break                     # 没设上限又无人可问 → 跑一局收工
+            print(f'\n>> 自动开始第 {played + 1} 局…')
             try:
                 img, origin = B.grab(stable=True)
                 click_face(img, origin)
@@ -194,24 +263,44 @@ def main():
             except Exception as e:               # noqa: BLE001
                 print('[!] 重开失败：', e)
                 break
-        res, clicks, rd, chords = bot.play_one(g, resume=True,
-                                               verbose_board=args.verbose_board)
-        results.append((g, res, clicks, rd, chords))
+            continue
 
-        print()
-        if res == 'win':
-            print(f'>>> 第 {g} 局：通关！')
-        elif res == 'lose':
-            print(f'>>> 第 {g} 局：踩雷了（差一点）')
-        else:
-            print(f'>>> 第 {g} 局：{res}')
-        print(f'    轮次 {rd}，左键点击 {clicks} 次，chord {chords} 次')
+        choice = ask_next(played, wins)
+        if choice == 'quit':
+            break
+
+        if choice == 'next':
+            print()
+            print(f'>> 准备第 {played + 1} 局：点笑脸重开…')
+            try:
+                img, origin = B.grab(stable=True)
+                click_face(img, origin)
+                time.sleep(1.6)
+            except Exception as e:               # noqa: BLE001
+                print('[!] 重开失败：', e)
+                break
+        else:                                    # rescan：就地重新识别当前局面
+            print()
+            print('>> 重新识别当前局面…')
+            try:
+                img, origin = B.grab(stable=True)
+                lay = L.detect(img)
+                bd = B.read(img, lay)
+            except Exception as e:               # noqa: BLE001
+                print('[!] 识别失败：', e)
+                break
+            if bd.is_boom() or (bd.counts['hidden'] + bd.counts['question'] == 0):
+                print('   这一把已经结束了，帮你点笑脸重开。')
+                click_face(img, origin)
+                time.sleep(1.6)
+            else:
+                print(f'   好，接着玩 —— 已翻开 {bd.counts["open"]} 格，'
+                      f'已插旗 {bd.counts["flag"]}，未翻开 {bd.counts["hidden"]}')
 
     print()
     print(LINE)
-    if results:
-        wins_n = sum(1 for _, r, _, _, _ in results if r == 'win')
-        print(f'   全部结束：{wins_n} 胜 / {len(results)} 局')
+    if played:
+        print(f'   本次一共玩了 {played} 局，{wins} 胜')
     else:
         print('   没有完成任何一局。')
     print(LINE)

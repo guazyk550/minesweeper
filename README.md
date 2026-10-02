@@ -95,10 +95,12 @@ autoplay/build_exe.ps1     ← 打包成独立 exe（内置 Python，目标机�
 用法：
 
 ```powershell
-python autoplay.py --games 3      # 连玩 3 局
-python autoplay.py --new          # 先重开一局
+python autoplay.py --games 3      # 最多 3 局（跑满自动收工）
+python autoplay.py --new          # 开始前先重开一局
 python autoplay.py --list         # 只列出识别到的扫雷窗口
 ```
+
+不带参数时它会**一直玩下去，每局结束后问你要不要继续**（回车再来一局 / `c` 就地重新识别当前局面 / `q` 退出），不用关掉程序重开。
 
 它能自动认出三种启动方式（`saolei.exe` / `Minesweeper.exe` / `java -jar`），
 自适应 16px 和 20px 格子、任意行列数，并自己读数码管拿雷数。
