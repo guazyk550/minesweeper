@@ -102,6 +102,7 @@ python autoplay.py --list         # 只列出识别到的扫雷窗口
 
 它能自动认出三种启动方式（`saolei.exe` / `Minesweeper.exe` / `java -jar`），
 自适应 16px 和 20px 格子、任意行列数，并自己读数码管拿雷数。
+运行期间只在控制台输出，**不会往磁盘写任何文件**。
 
 有趣的是：**它和本项目的求解器是同源的**（`autoplay/solver.py` 是 `Solver.java` 的 Python 版），
 只不过一个直接读内存里的游戏模型，另一个得靠眼睛看屏幕。

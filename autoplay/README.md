@@ -14,8 +14,8 @@
 1. 自动找到桌面上正在运行的扫雷窗口
 2. 报出识别到的盘面（几列几行、格子多大、多少雷、当前进度）
 3. 实时认棋盘、算下一步、用鼠标点
-4. 日志同时打在 cmd 窗口里，并保存到 `run.log`
-5. 结束后显示战果，并提示「按任意键退出」
+4. **所有输出都实时打在 cmd 窗口里，不会往程序目录写任何文件**
+5. 结束后显示战果，并提示「按回车键退出」
 
 想要一个**不依赖 Python 的独立 exe**（可以拷到任何机器上双击运行）：
 
@@ -72,11 +72,12 @@ python autoplay.py --verbose-board # 把每轮棋盘快照也打进日志
 ```
 autoplay.py     启动脚本（命令行界面 + 流程编排）
 扫雷自动玩.bat  双击入口（找 Python、跑脚本、pause）
+build_exe.ps1   打包成独立 exe
 bot.py          核心循环：求解 → 点击，含踩雷归因与推理审计
 layout.py       自动识别网格几何与数码管读数
 board.py        向量化读盘
 solver.py       求解器（约束传播 / 子集差分 / 分量枚举 + 全局雷数概率）
 windows.py      窗口与对话框管理
 mouse.py        Win32 鼠标模拟
-run.log         实时日志
+test_solver.py / test_layouts.py / make_midgame.py / exp_chord.py   自测与实验脚本
 ```

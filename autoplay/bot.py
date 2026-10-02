@@ -13,15 +13,9 @@ import windows as W
 import win
 import mouse
 
-LOG = os.environ.get('SAOLEI_LOG') or os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 'run.log')
-
-
 def log(*a):
-    msg = ' '.join(str(x) for x in a)
-    with open(LOG, 'a', encoding='utf-8') as f:
-        f.write(msg + '\n')
-    print(msg, flush=True)
+    """只打到控制台，不落盘 —— 免得在程序所在目录（比如桌面）留一堆日志文件。"""
+    print(' '.join(str(x) for x in a), flush=True)
 
 
 class Session:
@@ -213,13 +207,7 @@ def play_one(gidx, max_rounds=3000, verbose_board=True, resume=False):
                 log(f'[审计] 上轮判定安全 {len(audit["safe"])} 个，实际是雷的 {len(bad)} 个: {bad[:8]}')
             return done('lose', clicks, rd, chords)
         if bd.counts['hidden'] + bd.counts['question'] == 0:
-            fn = os.path.join(os.path.dirname(LOG), f'win_g{gidx}.png')
-            try:
-                if getattr(sess, 'last_img', None) is not None:
-                    sess.last_img.save(fn)
-            except Exception as e:
-                log('[截图失败]', e)
-            log(f'[胜利] 第{rd}轮完成，点击{clicks} 次，chord {chords} 次，截图 {fn}')
+            log(f'[胜利] 第{rd}轮完成，点击 {clicks} 次，chord {chords} 次')
             return done('win', clicks, rd, chords)
         st = S.State(bd)
         _t0 = time.time()
@@ -318,7 +306,6 @@ def setup(mode=None):
 
 
 def main(games=1, mode=None, resume=False):
-    open(LOG, 'w', encoding='utf-8').close()
     if not resume:
         setup(mode)
     results = []

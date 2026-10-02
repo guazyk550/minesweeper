@@ -1,8 +1,8 @@
-"""扫雷自动玩 —— 双击 `扫雷自动玩.bat` 即可运行。
+"""扫雷自动玩 —— 双击 `扫雷自动玩.bat` 或独立 exe 即可运行。
 
-自动识别桌面上正在运行的扫雷窗口（经典 saolei.exe 或本项目的 Java 版
-Minesweeper.exe），用「截图识别棋盘 + 虚拟鼠标点击」实时游玩，
-日志同时打印到控制台和 run.log。
+自动识别桌面上正在运行的扫雷窗口（经典 saolei.exe、本项目 Java 版
+Minesweeper.exe，或 java -jar 启动的），用「截图识别棋盘 + 虚拟鼠标点击」
+实时游玩。所有输出都打在控制台上，**不会往程序目录写任何文件**。
 
 用法示例：
     python autoplay.py                 # 接手当前局面，玩 1 局
@@ -15,25 +15,13 @@ import os
 import sys
 import time
 
+sys.dont_write_bytecode = True      # 别在程序目录里留 __pycache__
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 LINE = '=' * 64
 THIN = '-' * 64
-
-
-def app_dir():
-    """打包成 exe 后返回 exe 所在目录，直接跑脚本时返回脚本目录。
-
-    日志、截图这类产物都写到这个目录，免得打出来的 exe 把文件丢到临时解包目录里。
-    """
-    if getattr(sys, 'frozen', False):
-        return os.path.dirname(os.path.abspath(sys.executable))
-    return HERE
-
-
-# bot/solver 等模块按这个环境变量决定日志写哪儿
-os.environ.setdefault('SAOLEI_LOG', os.path.join(app_dir(), 'run.log'))
 
 
 def banner():
@@ -224,7 +212,6 @@ def main():
     if results:
         wins_n = sum(1 for _, r, _, _, _ in results if r == 'win')
         print(f'   全部结束：{wins_n} 胜 / {len(results)} 局')
-        print(f'   日志文件：{os.environ.get("SAOLEI_LOG")}')
     else:
         print('   没有完成任何一局。')
     print(LINE)
