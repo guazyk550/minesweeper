@@ -19,3 +19,13 @@ tools/__pycache__/
 # 临时截图（README 里引用的几张除外）
 tmp_*.png
 shot*.png
+
+# 外部自动玩机器人（autoplay/）的运行产物
+autoplay/run.log
+autoplay/win_g*.png
+autoplay/auto_board.png
+autoplay/perf_test.log
+autoplay/dist/
+autoplay/build_pyi/
+autoplay/*.spec
+autoplay/__pycache__/

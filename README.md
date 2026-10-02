@@ -81,6 +81,33 @@ java -jar minesweeper.jar --auto expert --exit # 通关后打印成绩并退出�
 | 菜单「视图」 | 缩放 100% / 125% / 150% / 200% |
 | 菜单「自动」 | 开始暂停、单步、速度、重置统计 |
 
+## 配套：外部自动玩机器人（`autoplay/`）
+
+本仓库还带一个**独立于游戏本体**的自动玩机器人：它靠**截图识别棋盘 + 模拟鼠标点击**
+来玩桌面上的扫雷，所以不只能玩本项目的 Java 版，也能玩经典的 `saolei.exe`。
+
+```
+autoplay/扫雷自动玩.bat    ← 双击启动（需要 Python + numpy + Pillow）
+autoplay/autoplay.py       ← 启动器：自动找窗口、报盘面、实时日志
+autoplay/build_exe.ps1     ← 打包成独立 exe（内置 Python，目标机器什么都不用装）
+```
+
+用法：
+
+```powershell
+python autoplay.py --games 3      # 连玩 3 局
+python autoplay.py --new          # 先重开一局
+python autoplay.py --list         # 只列出识别到的扫雷窗口
+```
+
+它能自动认出三种启动方式（`saolei.exe` / `Minesweeper.exe` / `java -jar`），
+自适应 16px 和 20px 格子、任意行列数，并自己读数码管拿雷数。
+
+有趣的是：**它和本项目的求解器是同源的**（`autoplay/solver.py` 是 `Solver.java` 的 Python 版），
+只不过一个直接读内存里的游戏模型，另一个得靠眼睛看屏幕。
+
+详细原理与踩过的坑见 [`autoplay/README.md`](autoplay/README.md)。
+
 ## 为什么不会出现"必猜死局"
 
 先看随机布雷的实际情况（本项目对 1000 张纯随机地图抽样 12 张的实测）：
