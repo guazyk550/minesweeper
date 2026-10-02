@@ -1,0 +1,39 @@
+name: build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Compile
+        run: |
+          mkdir -p out
+          javac -encoding UTF-8 -d out src/minesweeper/*.java
+
+      - name: Generator / solver self-test
+        run: java -cp out minesweeper.GenTest
+
+      - name: Headless auto-play test
+        run: java -cp out minesweeper.HeadlessTest
+
+      - name: Package jar
+        run: jar --create --file minesweeper.jar --main-class minesweeper.MainFrame -C out .
+
+      - name: Upload jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: minesweeper-jar
+          path: minesweeper.jar
