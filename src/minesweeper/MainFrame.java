@@ -13,7 +13,7 @@ import java.util.Random;
 /** 主窗口：菜单 + LED 计数面板 + 笑脸重开 + 棋盘 + 自动玩控制条。 */
 public class MainFrame extends JFrame {
 
-    private GameModel.Difficulty diff = GameModel.Difficulty.BEGINNER;
+    private GameModel.Difficulty diff = lastDifficulty();
     private GameModel game;
 
     private final BoardPanel board = new BoardPanel();
@@ -35,7 +35,37 @@ public class MainFrame extends JFrame {
     private boolean demoExit;
     private boolean endHandled;
     /** 整体缩放：格子、数码管、笑脸、数字字体一起变。 */
-    private double scale = 1.25;
+    private double scale = PREFS.getDouble("scale", 1.25);
+
+    /** 记住上次用的难度与缩放。Java 内置的 Preferences，Windows 下落注册表
+     *  （HKCU\Software\JavaSoft\Prefs），不会在程序目录留下配置文件。 */
+    private static final java.util.prefs.Preferences PREFS =
+            java.util.prefs.Preferences.userNodeForPackage(MainFrame.class);
+
+    /** 读上次的难度；没存过或存的值不合法就回到初级。 */
+    private static GameModel.Difficulty lastDifficulty() {
+        int cols = PREFS.getInt("cols", 0);
+        int rows = PREFS.getInt("rows", 0);
+        int mines = PREFS.getInt("mines", 0);
+        for (GameModel.Difficulty d : new GameModel.Difficulty[]{
+                GameModel.Difficulty.BEGINNER,
+                GameModel.Difficulty.INTERMEDIATE,
+                GameModel.Difficulty.EXPERT}) {
+            if (d.cols() == cols && d.rows() == rows && d.mines() == mines) {
+                return d;
+            }
+        }
+        if (cols < 5 || rows < 5 || mines < 1) {
+            return GameModel.Difficulty.BEGINNER;
+        }
+        return GameModel.Difficulty.custom(cols, rows, mines);
+    }
+
+    private static void rememberDifficulty(GameModel.Difficulty d) {
+        PREFS.putInt("cols", d.cols());
+        PREFS.putInt("rows", d.rows());
+        PREFS.putInt("mines", d.mines());
+    }
 
     public MainFrame() {
         super("扫雷 Minesweeper");
@@ -52,6 +82,7 @@ public class MainFrame extends JFrame {
     /** 应用整体缩放并重新适配窗口。 */
     private void applyScale(double s) {
         scale = s;
+        PREFS.putDouble("scale", s);           // 记住缩放，下次打开还是这个大小
         board.setCellSize((int) Math.round(UiTheme.CELL * s));
         mineLed.setScale(s);
         timeLed.setScale(s);
@@ -254,6 +285,7 @@ public class MainFrame extends JFrame {
         autoBtn.setText("▶ 自动玩");
         endHandled = false;
         this.diff = d;
+        rememberDifficulty(d);         // 记住这个难度，下次打开直接用它
         game = new GameModel(d, null);          // 延迟布雷：首次点击后生成
         board.setGame(game);
         faceBtn.setKind(UiTheme.Face.SMILE);

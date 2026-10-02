@@ -89,6 +89,81 @@ def setup_console():
         pass
 
 
+# ---------------------------------------------------------------- 窗口大小记忆
+
+def _cfg_path():
+    """配置放在 %APPDATA% 下，不污染程序所在目录（比如桌面）。"""
+    base = os.environ.get('APPDATA') or os.path.expanduser('~')
+    return os.path.join(base, 'MinesweeperAutoPlay', 'console.json')
+
+
+def _console_hwnd():
+    try:
+        import ctypes
+        return ctypes.windll.kernel32.GetConsoleWindow()
+    except Exception:                            # noqa: BLE001
+        return 0
+
+
+def _console_size():
+    """当前控制台窗口的 (左, 上, 宽, 高)，拿不到返回 None。"""
+    try:
+        import ctypes
+
+        class RECT(ctypes.Structure):
+            _fields_ = [('left', ctypes.c_long), ('top', ctypes.c_long),
+                        ('right', ctypes.c_long), ('bottom', ctypes.c_long)]
+
+        h = _console_hwnd()
+        if not h:
+            return None
+        r = RECT()
+        if not ctypes.windll.user32.GetWindowRect(h, ctypes.byref(r)):
+            return None
+        return r.left, r.top, r.right - r.left, r.bottom - r.top
+    except Exception:                            # noqa: BLE001
+        return None
+
+
+def restore_console_size():
+    """把控制台窗口恢复成上次退出时的大小。"""
+    try:
+        import json
+        p = _cfg_path()
+        if not os.path.exists(p):
+            return
+        with open(p, encoding='utf-8') as f:
+            cfg = json.load(f)
+        w, h = int(cfg.get('w', 0)), int(cfg.get('h', 0))
+        if w < 240 or h < 140:
+            return
+        cur = _console_size()
+        if not cur:
+            return
+        import ctypes
+        hwnd = _console_hwnd()
+        SWP_NOZORDER, SWP_NOACTIVATE = 0x0004, 0x0010
+        ctypes.windll.user32.SetWindowPos(hwnd, 0, cur[0], cur[1], w, h,
+                                          SWP_NOZORDER | SWP_NOACTIVATE)
+    except Exception:                            # noqa: BLE001
+        pass
+
+
+def save_console_size():
+    """记住当前控制台窗口大小，下次启动照这个开。"""
+    try:
+        import json
+        r = _console_size()
+        if not r or r[2] < 240 or r[3] < 140:
+            return
+        p = _cfg_path()
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, 'w', encoding='utf-8') as f:
+            json.dump({'w': r[2], 'h': r[3]}, f)
+    except Exception:                            # noqa: BLE001
+        pass
+
+
 def pause_if_frozen():
     """双击 exe 时结束后停一下，别让窗口一闪而过。"""
     if not getattr(sys, 'frozen', False):
@@ -307,6 +382,7 @@ def main():
 
 if __name__ == '__main__':
     setup_console()
+    restore_console_size()          # 上次调过多大，这次就开多大
     try:
         sys.stdout.reconfigure(encoding='utf-8')
         sys.stderr.reconfigure(encoding='utf-8')
@@ -316,5 +392,7 @@ if __name__ == '__main__':
         code = main()
     except KeyboardInterrupt:
         code = 130
+    finally:
+        save_console_size()         # 记住这次调过的大小
     pause_if_frozen()
     sys.exit(code)
