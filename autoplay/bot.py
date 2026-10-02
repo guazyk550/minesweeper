@@ -36,9 +36,12 @@ class Session:
         self.last_img = img
         self.origin = origin
         if force_layout or self.layout is None or self.key != img.size:
-            self.layout = L.detect(img)
+            # 多候选布局 + 读盘自洽性打分 —— 残局白边少时尤其需要，
+            # 否则会退化成经典公式法、读出错误的行列数
+            self.layout, bd = B.read_best(img)
             self.key = img.size
-        bd = B.read(img, self.layout)
+        else:
+            bd = B.read(img, self.layout)
         t2 = time.time()
         st = self.stat
         st['grab'] += t1 - t0
@@ -243,18 +246,32 @@ def play_one(gidx, max_rounds=3000, verbose_board=True, resume=False):
                 return done('stuck', clicks, rd, chords)
             safe = [random.choice(cand)]
             log(f'[随机] {safe[0]}')
-        # 1) 插旗
-        if mines:
-            log(f'[插旗] {sorted(mines)[:20]}{" ..." if len(mines) > 20 else ""}')
-            for c, r in mines:
+        # 1) 插旗：只插求解器确认是雷、且屏幕上还没插旗的格
+        to_flag = [g for g in sorted(mines) if g not in st.marked]
+        if to_flag:
+            log(f'[插旗] {to_flag[:20]}{" ..." if len(to_flag) > 20 else ""}')
+            for c, r in to_flag:
                 sess.click(c, r, 'right')
                 clicks += 1
+                st.marked.add((c, r))
+        if mines:
             known_mines |= set(mines)
-            st.flags |= set(mines)
             st.unknown -= set(mines)
-        # 2) chord：在已翻开的数字格上左右键同按，一次翻开相邻格。
+
+        # 2) 取消插错的旗：求解器说这格安全、屏幕上却插着旗
+        #    （残局接手时玩家插错的旗，不纠正的话后面会一直推理错）
+        wrong_flags = [g for g in sorted(safe) if g in st.marked]
+        if wrong_flags:
+            log(f'[取消错旗] {wrong_flags[:20]}{" ..." if len(wrong_flags) > 20 else ""}')
+            for c, r in wrong_flags:
+                sess.click(c, r, 'right')      # 旗 -> 问号/空
+                clicks += 1
+                known_mines.discard((c, r))
+                st.marked.discard((c, r))
+
+        # 3) chord：在已翻开的数字格上左右键同按，一次翻开相邻格。
         #    安全条件：该数字格周围旗数已等于它的数字，且这些旗都是求解器确认过的真雷
-        #    —— 此时其余邻居必然安全（比"逐个证明每个邻居安全"宽松得多，能多 chord 不少）。
+        #    —— 此时其余邻居必然安全。
         #    （实测：左键单击已翻开数字格也会展开，但它不看旗子，会踩雷，所以只用双键 chord）
         covered = set()
         ch = []
@@ -264,7 +281,7 @@ def play_one(gidx, max_rounds=3000, verbose_board=True, resume=False):
             unk = [n for n in st.nb(c, r) if n in st.unknown]
             if not unk:
                 continue
-            flags_here = [n for n in st.nb(c, r) if n in st.flags]
+            flags_here = [n for n in st.nb(c, r) if n in st.marked]
             if len(flags_here) == v and all(n in known_mines for n in flags_here):
                 ch.append((c, r))
         if ch:
@@ -275,7 +292,7 @@ def play_one(gidx, max_rounds=3000, verbose_board=True, resume=False):
                     if n in st.unknown:
                         covered.add(n)
             log(f'[chord] {len(ch)} 个格，覆盖 {len(covered)} 格')
-        # 3) 剩余确定安全格逐个点开
+        # 4) 剩余确定安全格逐个点开（含刚取消掉错旗的那些）
         rest = [g for g in sorted(safe) if g not in covered]
         if rest:
             log(f'[翻格] {rest[:20]}{" ..." if len(rest) > 20 else ""}')

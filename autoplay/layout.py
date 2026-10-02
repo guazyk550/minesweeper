@@ -220,14 +220,10 @@ def _grid_span(white_edges, gray_edges, origin, cell):
 
 
 def detect_grid_projection(a):
-    """通用网格检测：白色定网格，深灰补右/下边界。
+    """通用网格检测（白色定网格 + 深灰补边界），返回单个结果或 None。
 
-    · **白色**（未翻开格左上的 2px 高光）用来定格子大小和原点，阈值取得高，
-      不会被菜单栏/按钮的界面白色带偏；
-    · **深灰**（每个格子右/下的边框或网格线，已翻开的格子也有）用来把
-      「棋盘只展开了一部分」时被吞掉的列数补回来。
-
-    与格子尺寸无关：经典 16px、本项目 Java 版 20px、60x40 大棋盘都吃。
+    保留这个入口是给「只要一个最可能的几何」的调用方用的；
+    残局等容易认错的场景请改用 detect_candidates + board.read_best。
     """
     Wm = (a[:, :, 0] > 240) & (a[:, :, 1] > 240) & (a[:, :, 2] > 240)
     Dm = ((np.abs(a[:, :, 0] - 128) < 30) & (np.abs(a[:, :, 1] - 128) < 30)
@@ -286,21 +282,83 @@ def detect_grid(a, win_w, win_h):
     return cols, rows, cell, gx, gy, 'pixel'
 
 
-def detect(img):
-    """从窗口截图识别布局（优先用与尺寸无关的投影法）。"""
-    a = np.asarray(img.convert('RGB')).astype(np.int32)
+def detect_candidates(a):
+    """给出若干候选布局（含数码管读数），按可信度从高到低。
+
+    为什么要多个候选：投影法靠**未翻开格的白边**，但如果这一局已经展开了一大半，
+    白边所剩无几，投影就会失败；此时若直接退化到经典公式法（那套 16px + 固定边距的
+    假设对别的实现是错的），就会读出完全错误的行列数 —— 残局接手时的乱点多半源于此。
+
+    所以这里把「白色主导」「深灰主导」「经典公式」三路结果都交出来，由调用方
+    （board.read_best）用「读盘结果是否自洽」来挑真正正确的那一个。
+    """
+    a = np.asarray(a.convert('RGB')).astype(np.int32)
     win_h, win_w = a.shape[:2]
     panels = find_panels(a)
-    mines_left = timer = None
-    if panels:
-        mines_left = read_digits(a, panels[0])
-    if len(panels) > 1:
-        timer = read_digits(a, panels[1])
-    res = detect_grid_projection(a)
-    if res is None:
-        res = detect_grid(a, win_w, win_h)
-    cols, rows, cell, gx, gy, src = res
-    return Layout(cols, rows, cell, gx, gy, mines_left, timer, src)
+    mines_left = read_digits(a, panels[0]) if panels else None
+    timer = read_digits(a, panels[1]) if len(panels) > 1 else None
+    out = []
+
+    def add(cols, rows, cell, gx, gy, src):
+        if cols < 2 or rows < 2 or not (5 <= cell <= 64):
+            return
+        if gx < 0 or gy < 0 or gx + cols * cell > win_w + 2 or gy + rows * cell > win_h + 2:
+            return
+        for c in out:
+            if (c.cols, c.rows, c.cell, c.gx, c.gy) == (cols, rows, cell, gx, gy):
+                return
+        out.append(Layout(cols, rows, cell, gx, gy, mines_left, timer, src))
+
+    Wm = (a[:, :, 0] > 240) & (a[:, :, 1] > 240) & (a[:, :, 2] > 240)
+    Dm = ((np.abs(a[:, :, 0] - 128) < 30) & (np.abs(a[:, :, 1] - 128) < 30)
+          & (np.abs(a[:, :, 2] - 128) < 30))
+    xw, _ = _project_peaks(Wm, 0)
+    yw, _ = _project_peaks(Wm, 1)
+    xd, _ = _project_peaks(Dm, 0, min_frac=0.35, min_abs=25)
+    yd, _ = _project_peaks(Dm, 1, min_frac=0.35, min_abs=25)
+
+    # A) 白色主导 —— 新手局最准
+    xg, cw = _longest_equidistant(xw)
+    yg, ch = _longest_equidistant(yw)
+    if xg and yg and cw and ch and abs(cw - ch) <= 2:
+        add(_grid_span(xg, xd, xg[0], cw), _grid_span(yg, yd, yg[0], ch),
+            cw, xg[0], yg[0], 'projection-white')
+
+    # B) 深灰主导 —— 残局的靠山（每个格子无论翻开与否都有深灰边线）
+    xgd, cwd = _longest_equidistant(xd)
+    ygd, chd = _longest_equidistant(yd)
+    if xgd and ygd and cwd and chd and abs(cwd - chd) <= 2:
+        # 深灰落在格子右边线上，左边界要往左退 cell-2。
+        # 首条边线有可能是棋盘外框，所以横竖两个方向各自「用/不用首条」都试一遍
+        # —— 比如 Java 版的竖向外框会被算进来，而横向不会。
+        xs = (0, 1) if len(xgd) >= 4 else (0,)
+        ys = (0, 1) if len(ygd) >= 4 else (0,)
+        for di in xs:
+            for dj in ys:
+                add(len(xgd) - di, len(ygd) - dj, cwd,
+                    xgd[di] - cwd + 2, ygd[dj] - chd + 2,
+                    f'projection-gray{di}{dj}')
+
+    # C) 经典公式法 —— 只对经典 saolei.exe 有效，当兜底
+    try:
+        f = detect_grid(a, win_w, win_h)
+        if f:
+            add(f[0], f[1], f[2], f[3], f[4], f[5])
+    except Exception:                            # noqa: BLE001
+        pass
+
+    return out
+
+
+def detect(img):
+    """识别布局，返回可信度最高的那个候选（不做读盘自洽性校验）。"""
+    cands = detect_candidates(img)
+    if cands:
+        return cands[0]
+    a = np.asarray(img.convert('RGB')).astype(np.int32)
+    win_h, win_w = a.shape[:2]
+    cols, rows, cell, gx, gy, src = detect_grid(a, win_w, win_h)
+    return Layout(cols, rows, cell, gx, gy, None, None, src)
 
 
 if __name__ == '__main__':

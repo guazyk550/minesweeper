@@ -105,19 +105,31 @@ def test_total_mines():
 
 
 def test_chord():
-    """chord 判定"""
+    """chord 判定（这组用例假定旗可信，所以显式打开 trust_flags）"""
     cells = grid(6, 6)
     cells[2][2] = (O, 1)
     cells[1][1] = (F, None)      # 旗子
     cells[2][1] = (H, None)      # 未翻开
     cells[3][2] = (O, 0)
-    st = S.State(FakeBoard(cells, 1))
+    st = S.State(FakeBoard(cells, 1), trust_flags=True)
     ch = S.chordable(st)
     assert (2, 2) in ch, ch
     cells[2][1] = (F, None)
-    st = S.State(FakeBoard(cells, 1))
+    st = S.State(FakeBoard(cells, 1), trust_flags=True)
     assert (2, 2) not in S.chordable(st), '旗满但无未知格时不该 chord'
     print('test_chord 通过')
+
+
+def test_untrusted_flags():
+    """默认不信任屏幕上的旗：玩家插错的旗不能把推理带偏"""
+    cells = grid(6, 6)
+    cells[2][2] = (O, 1)
+    cells[1][1] = (F, None)      # 玩家插的旗（可能是错的）
+    st = S.State(FakeBoard(cells, 1))
+    assert not st.flags, '默认不该把旗当成已知雷'
+    assert (1, 1) in st.unknown, '旗格应当被当成未知格重新推理'
+    assert (1, 1) in st.marked, '屏幕上的旗位置要单独记住，才能主动取消'
+    print('test_untrusted_flags 通过')
 
 
 def test_consistency():
@@ -144,6 +156,7 @@ def test_consistency():
     print('test_consistency 通过')
 
 
-for f in (test_basic, test_diff, test_probs, test_total_mines, test_chord, test_consistency):
+for f in (test_basic, test_diff, test_probs, test_total_mines, test_chord,
+          test_untrusted_flags, test_consistency):
     f()
 print('全部通过')

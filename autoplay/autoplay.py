@@ -186,11 +186,10 @@ def main():
     if args.speed > 0:
         os.environ['SAOLEI_EXTRA_DELAY_MS'] = str(args.speed)
 
-    # 先看一眼目标窗口现在长什么样
+    # 先看一眼目标窗口现在长什么样（用多候选 + 自洽性打分，残局才不会认错）
     try:
         img, origin = B.grab(stable=True)
-        lay = L.detect(img)
-        bd = B.read(img, lay)
+        lay, bd = B.read_best(img)
     except Exception as e:                       # noqa: BLE001
         print('[!] 读取棋盘失败：', e)
         print('    请确认扫雷窗口没有被最小化、也没有被别的窗口挡住。')
@@ -206,8 +205,7 @@ def main():
         time.sleep(1.6)
         try:
             img, origin = B.grab(stable=True)
-            lay = L.detect(img)
-            bd = B.read(img, lay)
+            lay, bd = B.read_best(img)
         except Exception as e:                   # noqa: BLE001
             print('[!] 重开后读取失败：', e)
             return 3
@@ -284,8 +282,7 @@ def main():
             print('>> 重新识别当前局面…')
             try:
                 img, origin = B.grab(stable=True)
-                lay = L.detect(img)
-                bd = B.read(img, lay)
+                lay, bd = B.read_best(img)
             except Exception as e:               # noqa: BLE001
                 print('[!] 识别失败：', e)
                 break

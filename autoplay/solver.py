@@ -16,15 +16,27 @@ def neighbors(c, r, cols, rows):
 
 
 class State:
-    """从 board.Board 构建的求解状态。"""
+    """从 board.Board 构建的求解状态。
 
-    def __init__(self, bd):
+    `trust_flags=False`（默认）表示**不信任屏幕上已有的旗**：残局接手时那些旗
+    很可能是玩家凭感觉插的，插错一面就会把整条推理带偏（实测直接踩雷）。
+    这时把旗格也当成未知格重新推理，让求解器自己判断。
+
+    `flags` 始终表示「被当作已知雷的位置」；`marked` 才是屏幕上实际插了旗的位置。
+    """
+
+    def __init__(self, bd, trust_flags=False):
         self.cols = bd.cols
         self.rows = bd.rows
         self.open = bd.opened()            # {(c,r): 数字}
-        self.flags = bd.flagged()
-        self.unknown = bd.unknown()        # 未翻开（含问号）
+        self.marked = bd.flagged()         # 屏幕上插了旗的位置
         self.total_mines = bd.total_mines()
+        if trust_flags:
+            self.flags = set(self.marked)
+            self.unknown = bd.unknown()    # 未翻开（含问号）
+        else:
+            self.flags = set()
+            self.unknown = bd.unknown() | set(self.marked)
 
     def nb(self, c, r):
         return neighbors(c, r, self.cols, self.rows)
